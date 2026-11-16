@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuickQuote Pro - Instant Estimate Generator</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; --text: #1e293b; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 16px; }
+        .container { max-width: 600px; margin: 0 auto; background: var(--card); padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px; }
+        .lang-btn { background: #e2e8f0; border: none; padding: 6px 10px; border-radius: 6px; font-weight: bold; cursor: pointer; margin-left: 4px; }
+        .lang-btn.active { background: var(--primary); color: white; }
+        h1 { font-size: 1.3rem; margin: 0; color: var(--primary); }
+        .group { margin-bottom: 14px; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        .item-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 6px; margin-bottom: 8px; }
+        .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; width: 100%; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-add { background: #10b981; margin-bottom: 15px; padding: 8px; font-size: 0.9rem; }
+        .btn-del { background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 10px; cursor: pointer; }
+        .pro-box { background: #eff6ff; border: 1px dashed var(--primary); padding: 12px; border-radius: 8px; margin-top: 20px; text-align: center; }
+        .total-box { text-align: right; font-size: 1.2rem; font-weight: bold; margin-top: 15px; padding-top: 10px; border-top: 2px solid #e2e8f0; }
+        .watermark { text-align: center; color: #94a3b8; font-size: 0.8rem; margin-top: 20px; }
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1 id="app-title">QuickQuote Pro</h1>
+        <div class="no-print">
+            <button class="lang-btn active" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" onclick="setLang('sk')">SK</button>
+            <button class="lang-btn" onclick="setLang('hu')">HU</button>
+        </div>
+    </div>
+
+    <div class="group">
+        <label id="lbl-from">Your Business / Name:</label>
+        <input type="text" id="from-name" placeholder="e.g. Smith Construction Ltd.">
+    </div>
+
+    <div class="group">
+        <label id="lbl-to">Client Name:</label>
+        <input type="text" id="to-name" placeholder="e.g. John Doe">
+    </div>
+
+    <div class="group">
+        <label id="lbl-items">Services / Items:</label>
+        <div id="items-container">
+            <div class="item-row">
+                <input type="text" class="desc" placeholder="Item / Work">
+                <input type="number" class="qty" value="1" min="1" oninput="calc()">
+                <input type="number" class="price" placeholder="Price" oninput="calc()">
+                <button class="btn-del no-print" onclick="this.parentElement.remove(); calc();">X</button>
+            </div>
+        </div>
+        <button class="btn btn-add no-print" id="btn-add" onclick="addItem()">+ Add Item</button>
+    </div>
+
+    <div class="group" style="display: flex; gap: 10px;">
+        <div style="flex: 1;">
+            <label id="lbl-tax">Tax / VAT (%):</label>
+            <input type="number" id="tax-rate" value="20" oninput="calc()">
+        </div>
+        <div style="flex: 1;">
+            <label id="lbl-curr">Currency:</label>
+            <select id="currency" onchange="calc()">
+                <option value="€">EUR (€)</option>
+                <option value="$">USD ($)</option>
+                <option value="£">GBP (£)</option>
+                <option value="Ft">HUF (Ft)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="total-box">
+        <span id="lbl-total">Total:</span> <span id="total-amount">0.00 €</span>
+    </div>
+
+    <button class="btn no-print" id="btn-print" onclick="window.print()">Save as PDF / Print</button>
+
+    <div class="watermark" id="watermark">Created with QuickQuote Free Version</div>
+
+    <div class="pro-box no-print" id="pro-section">
+        <strong id="pro-title">Remove Watermark (PRO Version)</strong>
+        <p id="pro-desc" style="font-size: 0.85rem; margin: 6px 0;">Buy lifetime access for €14 to remove branding.</p>
+        <div style="display: flex; gap: 6px; margin-top: 8px;">
+            <input type="text" id="pro-code" placeholder="Enter PRO Code (try: PRO2026)">
+            <button class="btn" style="margin:0; width: auto;" onclick="unlockPro()">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const translations = {
+        en: { title: "QuickQuote Pro", from: "Your Business / Name:", to: "Client Name:", items: "Services / Items:", add: "+ Add Item", tax: "Tax / VAT (%):", curr: "Currency:", total: "Total:", print: "Save as PDF / Print", proTitle: "Remove Watermark (PRO Version)", proDesc: "Buy lifetime access for €14 to remove branding." },
+        sk: { title: "Rýchla Cenová Ponuka", from: "Vaša firma / Meno:", to: "Meno klienta:", items: "Položky / Služby:", add: "+ Pridať položku", tax: "DPH (%):", curr: "Mena:", total: "Spolu:", print: "Uložiť ako PDF / Tlačiť", proTitle: "Odstrániť vodoznak (PRO verzia)", proDesc: "Kúpte si doživotný prístup za 14 €." },
+        hu: { title: "Gyors Árajánlat Készítő", from: "Vállalkozásod / Neved:", to: "Ügyfél neve:", items: "Tételek / Munkadíj:", add: "+ Tétel hozzáadása", tax: "ÁFA (%):", curr: "Pénznem:", total: "Összesen:", print: "Mentés PDF-ként / Nyomtatás", proTitle: "Vízjel eltávolítása (PRO verzió)", proDesc: "Vásárolj örökös hozzáférést 14 €-ért." }
+    };
+
+    function setLang(lang) {
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        const t = translations[lang];
+        document.getElementById('app-title').innerText = t.title;
+        document.getElementById('lbl-from').innerText = t.from;
+        document.getElementById('lbl-to').innerText = t.to;
+        document.getElementById('lbl-items').innerText = t.items;
+        document.getElementById('btn-add').innerText = t.add;
+        document.getElementById('lbl-tax').innerText = t.tax;
+        document.getElementById('lbl-curr').innerText = t.curr;
+        document.getElementById('lbl-total').innerText = t.total;
+        document.getElementById('btn-print').innerText = t.print;
+        document.getElementById('pro-title').innerText = t.proTitle;
+        document.getElementById('pro-desc').innerText = t.proDesc;
+    }
+
+    function addItem() {
+        const div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `<input type="text" class="desc" placeholder="Item"><input type="number" class="qty" value="1" min="1" oninput="calc()"><input type="number" class="price" placeholder="Price" oninput="calc()"><button class="btn-del no-print" onclick="this.parentElement.remove(); calc();">X</button>`;
+        document.getElementById('items-container').appendChild(div);
+    }
+
+    function calc() {
+        let sum = 0;
+        document.querySelectorAll('.item-row').forEach(row => {
+            const q = parseFloat(row.querySelector('.qty').value) || 0;
+            const p = parseFloat(row.querySelector('.price').value) || 0;
+            sum += q * p;
+        });
+        const tax = parseFloat(document.getElementById('tax-rate').value) || 0;
+        const curr = document.getElementById('currency').value;
+        const total = sum * (1 + tax / 100);
+        document.getElementById('total-amount').innerText = total.toFixed(2) + " " + curr;
+    }
+
+    function unlockPro() {
+        const code = document.getElementById('pro-code').value.trim();
+        if (code === "PRO2026") {
+            document.getElementById('watermark').style.display = 'none';
+            document.getElementById('pro-section').innerHTML = "<strong style='color:#10b981;'>✓ PRO Version Unlocked!</strong>";
+        } else {
+            alert("Invalid code!");
+        }
+    }
+</script>
+</body>
+</html>
